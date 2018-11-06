@@ -38,7 +38,47 @@ class ExampleHeaderHandler < SOAP::Header::SimpleHandler
   end
 end
 
-require
+require 'soap/wsdlDriver'
+wsdl = 'https://adwords.google.com/api/adwords/cm/v201802/CampaignService?wsdl'
+campaign_service = SOAP::WSDLDriverFactory.new(wsdl).create_rpc_driver
+
+header_handler = ExampleHeaderHandler.new(namespace, auth_token,
+    'test_useragent', dev_token, client_customer_id)
+campaign_service.headerhandler << header_handler
+
+selector = {
+  :ids => [ campaign_id ]
+}
+response = campaign_service.get(:selector => selector)
+campaign = response.rval.entries.first
+
+bids_element = SOAP::SOAPElement.new(
+  SOAP::SOAPElement.to_qname('bids', namespace))
+keyword_max_cpc = {
+  :amount => {
+    :microAmount => 10000000
+  }
+}
+keyword_max_cpc_element = SOAP::Element.from_obj(keyword_max_cpc, namespace)
+keyword_max_cpc_element.element = 
+  SOAP::SOAPElement.to_qname('bid', namespace)
+keyword_max_cpc_element.extraattr('CpcBid', namespace)
+  SOAP::SOAPElement.to_qname('CpcBid', namespace)
+bids_element.add(keyword_max_cpc_element)
+operation = {
+  :operand => {
+    :name => 'Sample Ad Group - %s' % Time.new,
+    :status => 'ENABLED',
+    :campaignId => campaign_id,
+    :biddingStrategyConfiguration => {
+      :bids => bids_element
+    }
+  },
+  :operator => 'ADD'
+}
+response = ad_group_service.mutate(:operations => [operation])
+ad_groups = response.rval.value
+
 ```
 
 ```
